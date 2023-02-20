@@ -2,12 +2,17 @@ package com.example.measuringscalewithar
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
+import android.view.MotionEvent
 import androidx.appcompat.widget.Toolbar
 import com.example.measuringscalewithar.databinding.ActivityMainBinding
 import com.google.ar.core.Anchor
 import com.google.ar.core.Config
 import com.google.ar.core.HitResult
+import com.google.ar.core.Plane
 import com.google.ar.sceneform.AnchorNode
+import com.google.ar.sceneform.FrameTime
+import com.google.ar.sceneform.Scene
 import com.google.ar.sceneform.math.Vector3
 import com.google.ar.sceneform.rendering.CameraStream
 import com.google.ar.sceneform.rendering.Renderable
@@ -16,8 +21,9 @@ import com.google.ar.sceneform.ux.TransformableNode
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
     lateinit var binding:ActivityMainBinding
+    lateinit var arFragment: ArFragment
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding=ActivityMainBinding.inflate(layoutInflater)
@@ -25,8 +31,8 @@ class MainActivity : AppCompatActivity() {
 
         val link="https://firebasestorage.googleapis.com/v0/b/woodpeaker-39311.appspot.com/o/models%2Fscene.glb?alt=media&token=54bc56cd-2bfa-4f7a-912e-070b669b66ad"
         val localLink="models/scene.glb"
-        var arFragment=(supportFragmentManager.findFragmentById(R.id.arFragment) as ArFragment)
-        arFragment.setOnTapPlaneGlbModel(link)
+        arFragment=(supportFragmentManager.findFragmentById(R.id.arFragment) as ArFragment)
+//        arFragment.setOnTapPlaneGlbModel(localLink)
 
         arFragment.apply {
             setOnSessionConfigurationListener { session, config ->
@@ -42,18 +48,23 @@ class MainActivity : AppCompatActivity() {
         }
 
 
+        arFragment.setOnTapArPlaneListener { hitResult, plane, motionEvent ->
+            placeAnchor(hitResult)
+
+
+
+        }
 
 
 
 
 
 
-    }
+        }
 
     var placedAnchors=ArrayList<Anchor>()
     var placedAnchorNodes=ArrayList<AnchorNode>()
-    private fun placeAnchor(hitResult: HitResult,
-                            renderable: Renderable
+     fun placeAnchor(hitResult: HitResult,
     ){
         val anchor = hitResult.createAnchor()
         placedAnchors.add(anchor)
@@ -88,5 +99,9 @@ class MainActivity : AppCompatActivity() {
 
     fun calculateDistance2(x: Float, y: Float, z: Float): Float {
         return sqrt(x.pow(2) + y.pow(2) + z.pow(2))
+    }
+
+    override fun onUpdate(frameTime: FrameTime?) {
+        Log.d("TAG","updating")
     }
 }
