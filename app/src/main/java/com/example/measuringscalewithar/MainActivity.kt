@@ -1,29 +1,50 @@
 package com.example.measuringscalewithar
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
-import android.view.MotionEvent
-import androidx.appcompat.widget.Toolbar
+import androidx.appcompat.app.AppCompatActivity
 import com.example.measuringscalewithar.databinding.ActivityMainBinding
 import com.google.ar.core.Anchor
 import com.google.ar.core.Config
 import com.google.ar.core.HitResult
-import com.google.ar.core.Plane
 import com.google.ar.sceneform.AnchorNode
 import com.google.ar.sceneform.FrameTime
+import com.google.ar.sceneform.Node
 import com.google.ar.sceneform.Scene
+import com.google.ar.sceneform.math.Quaternion
 import com.google.ar.sceneform.math.Vector3
-import com.google.ar.sceneform.rendering.CameraStream
-import com.google.ar.sceneform.rendering.Renderable
+import com.google.ar.sceneform.rendering.*
 import com.google.ar.sceneform.ux.ArFragment
 import com.google.ar.sceneform.ux.TransformableNode
 import kotlin.math.pow
 import kotlin.math.sqrt
 
+
 class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
     lateinit var binding:ActivityMainBinding
     lateinit var arFragment: ArFragment
+    private val MIN_OPENGL_VERSION = 3.0
+
+
+    private var distanceModeTextView: TextView? = null
+    private lateinit var pointTextView: TextView
+
+    private var cubeRenderable: ModelRenderable? = null
+    private var distanceCardViewRenderable: ViewRenderable? = null
+
+    private val distanceModeArrayList = ArrayList<String>()
+    private var distanceMode: String = ""
+
+    private val midAnchors: MutableMap<String, Anchor> = mutableMapOf()
+    private val midAnchorNodes: MutableMap<String, AnchorNode> = mutableMapOf()
+    private val fromGroundNodes = ArrayList<List<Node>>()
+
+    private val multipleDistances = Array(Constants.maxNumMultiplePoints,
+        {Array<TextView?>(Constants.maxNumMultiplePoints){null} })
+    private lateinit var initCM: String
+
+    private lateinit var clearButton: Button
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding=ActivityMainBinding.inflate(layoutInflater)
@@ -51,21 +72,15 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
         arFragment.setOnTapArPlaneListener { hitResult, plane, motionEvent ->
             placeAnchor(hitResult)
 
+            }
 
-
-        }
-
-
-
-
-
-
-        }
+    }
 
     var placedAnchors=ArrayList<Anchor>()
     var placedAnchorNodes=ArrayList<AnchorNode>()
-     fun placeAnchor(hitResult: HitResult,
-    ){
+     fun placeAnchor(
+         hitResult: HitResult,
+     ){
         val anchor = hitResult.createAnchor()
         placedAnchors.add(anchor)
 
@@ -104,4 +119,41 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
     override fun onUpdate(frameTime: FrameTime?) {
         Log.d("TAG","updating")
     }
+    private fun drawLine(node1: AnchorNode, node2: AnchorNode) {
+        //Draw a line between two AnchorNodes (adapted from https://stackoverflow.com/a/52816504/334402)
+        Log.d("TAG", "drawLine")
+        val point1: Vector3
+        val point2: Vector3
+        point1 = node1.worldPosition
+        point2 = node2.worldPosition
+
+
+        //First, find the vector extending between the two points and define a look rotation
+        //in terms of this Vector.
+        val difference = Vector3.subtract(point1, point2)
+        val directionFromTopToBottom = difference.normalized()
+        val rotationFromAToB: Quaternion =
+            Quaternion.lookRotation(directionFromTopToBottom, Vector3.up())
+        MaterialFactory.makeOpaqueWithColor(applicationContext, Color(0F, 255F, 244F))
+            .thenAccept { material: Material? ->
+                /* Then, create a rectangular prism, using ShapeFactory.makeCube() and use the difference vector
+               to extend to the necessary length.  */Log.d(
+                "TAG",
+                "drawLine insie .thenAccept"
+            )
+                val model = ShapeFactory.makeCube(
+                    Vector3(.01f, .01f, difference.length()),
+                    Vector3.zero(), material
+                )
+                /* Last, set the world rotation of the node to the rotation calculated earlier and set the world position to
+           the midpoint between the given points . */
+                val lineAnchor = node2.anchor
+                val nodeForLine = Node()
+                nodeForLine.setParent(node1)
+                nodeForLine.setRenderable(model)
+                nodeForLine.setWorldPosition(Vector3.add(point1, point2).scaled(.5f))
+                nodeForLine.setWorldRotation(rotationFromAToB)
+            }
+    }
+
 }
