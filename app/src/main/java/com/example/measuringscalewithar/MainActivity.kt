@@ -22,6 +22,7 @@ import com.google.ar.sceneform.math.Vector3
 import com.google.ar.sceneform.rendering.*
 import com.google.ar.sceneform.ux.ArFragment
 import com.google.ar.sceneform.ux.TransformableNode
+import java.util.Hashtable
 import kotlin.math.pow
 import kotlin.math.sqrt
 
@@ -35,12 +36,13 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
 //    private var distanceModeTextView: TextView? = null
 //    private lateinit var pointTextView: TextView
 //
-    private var cubeRenderable: ModelRenderable? = null
+    lateinit var cubeRenderable: ModelRenderable
+    private var distanceCardViewRenderable: ViewRenderable? = null
 
     var placedAnchors=ArrayList<Anchor>()
     var placedAnchorNodes=ArrayList<AnchorNode>()
-    private val midAnchors: MutableMap<String, Anchor> = mutableMapOf()
-    private val midAnchorNodes: MutableMap<String, AnchorNode> = mutableMapOf()
+    val midAnchors: MutableMap<String, Anchor> = mutableMapOf()
+    val midAnchorNodes:MutableMap<String,ArrayList<Any?>> = mutableMapOf()
 //
 //    private val multipleDistances = Array(Constants.maxNumMultiplePoints,
 //        {Array<TextView?>(Constants.maxNumMultiplePoints){null} })
@@ -57,7 +59,7 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
 //        val localLink="models/scene.glb"
         arFragment=(supportFragmentManager.findFragmentById(R.id.arFragment) as ArFragment)
 //        arFragment.setOnTapPlaneGlbModel(localLink)
-        cubeRenderable=initSphere()
+        initSphere()
         arFragment.apply {
             setOnSessionConfigurationListener { session, config ->
                 if (session.isDepthModeSupported(Config.DepthMode.AUTOMATIC)) {
@@ -77,7 +79,7 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
         }
     }
     private fun placeAnchor(hitResult: HitResult,
-                            renderable: Renderable){
+                            renderable: ModelRenderable){
         val anchor = hitResult.createAnchor()
         placedAnchors.add(anchor)
 
@@ -120,10 +122,11 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
     }
 
     override fun onUpdate(frameTime: FrameTime?) {
-        for(i in 0 until (placedAnchorNodes.size-1)){
-            measureDistanceOf2Points(i,i+1)
-
-        }
+//        for(i in 0 until (placedAnchorNodes.size-1)){
+//            measureDistanceOf2Points(i,i+1)
+//
+//        }
+        Log.d("TAG","onUpdate....")
     }
     private fun drawLine(node1: AnchorNode, node2: AnchorNode) {
         //Draw a line between two AnchorNodes (adapted from https://stackoverflow.com/a/52816504/334402)
@@ -163,27 +166,24 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
     }
 
     private fun initDistanceCard():ViewRenderable?{
-        var distanceCardViewRenderable:ViewRenderable?=null
-        ViewRenderable
+        val a=ViewRenderable
             .builder()
-            .setView(this, R.layout.distance_text_layout)
-            .build()
-            .thenAccept{
+        val b=a.setView(this, R.layout.distance_text_layout)
+        val c=b.build()
+        val d=c.thenAccept{
+                var distanceCardViewRenderable:ViewRenderable
                 distanceCardViewRenderable = it
                 distanceCardViewRenderable!!.isShadowCaster = false
                 distanceCardViewRenderable!!.isShadowReceiver = false
-            }
-            .exceptionally {
+            }.exceptionally {
                 val builder = AlertDialog.Builder(this)
                 builder.setMessage(it.message).setTitle("Error")
                 val dialog = builder.create()
                 dialog.show()
-                return@exceptionally null
-            }
-        return distanceCardViewRenderable
+                return@exceptionally null }
+        return c.get()
     }
-    private fun initSphere():ModelRenderable? {
-        var cubeRenderable: ModelRenderable?=null
+    private fun initSphere() {
         MaterialFactory.makeTransparentWithColor(
             this,
             Color(android.graphics.Color.RED)
@@ -203,7 +203,6 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
                 dialog.show()
                 return@exceptionally null
             }
-        return cubeRenderable
     }
     private fun tapDistanceOf2Points(hitResult: HitResult){
         placeAnchor(hitResult, cubeRenderable!!)
@@ -217,7 +216,7 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
             val quaternion = floatArrayOf(0.0f,0.0f,0.0f,0.0f)
             val pose = Pose(midPosition, quaternion)
 
-            placeMidAnchor(pose)
+            placeMidAnchor(pose, arrayOf(a,b))
         }
     }
 
@@ -231,8 +230,8 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
             isSmoothed = true
             setParent(arFragment!!.arSceneView.scene)
         }
-        midAnchorNodes.put(midKey, anchorNode)
         val distanceCardRenderable=initDistanceCard()
+        arrayListOf(anchorNode,distanceCardRenderable)?.let { midAnchorNodes.put(midKey, it) }
         val node = TransformableNode(arFragment!!.transformationSystem)
             .apply{
                 this.rotationController.isEnabled = true
@@ -254,7 +253,8 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
         }
         placedAnchorNodes.clear()
         midAnchors.clear()
-        for ((k,anchorNode) in midAnchorNodes){
+        for ((k,arr) in midAnchorNodes){
+            val anchorNode= arr[0] as AnchorNode
             arFragment!!.arSceneView.scene.removeChild(anchorNode)
             anchorNode.isEnabled = false
             anchorNode.anchor!!.detach()
@@ -267,13 +267,14 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
             val distanceMeter = calculateDistance(
                 placedAnchorNodes[i].worldPosition,
                 placedAnchorNodes[j].worldPosition)
-            measureDistanceOf2Points(distanceMeter)
+            measureDistanceOf2Points(distanceMeter,i,j)
         }
     }
 
-    private fun measureDistanceOf2Points(distanceMeter: Float){
+    private fun measureDistanceOf2Points(distanceMeter: Float,i:Int,j:Int){
         val distanceTextFt = makeDistanceTextWithFt(distanceMeter)
-        val textView = (distanceCardViewRenderable!!.view as LinearLayout)
+        val distanceCardRenderable=midAnchorNodes.get("$i"+"_"+"$j")?.get(1) as ViewRenderable
+        val textView = (distanceCardRenderable!!.view as LinearLayout)
             .findViewById<TextView>(R.id.distanceCard)
         textView.text = distanceTextFt
         Log.d("TAG", "distance: ${distanceTextFt}")
