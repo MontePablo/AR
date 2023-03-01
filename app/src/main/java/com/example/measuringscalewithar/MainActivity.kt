@@ -42,8 +42,9 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
     var placedAnchors=ArrayList<Anchor>()
     var placedAnchorNodes=ArrayList<AnchorNode>()
     val midAnchors: MutableMap<String, Anchor> = mutableMapOf()
-    val midAnchorNodes:MutableMap<String,ArrayList<Any?>> = mutableMapOf()
-//
+    val midAnchorNodes:MutableMap<String,AnchorNode> = mutableMapOf()
+    val distanceCardRenderables:MutableMap<String,ViewRenderable> =mutableMapOf()
+    //
 //    private val multipleDistances = Array(Constants.maxNumMultiplePoints,
 //        {Array<TextView?>(Constants.maxNumMultiplePoints){null} })
     private lateinit var initCM: String
@@ -82,36 +83,7 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
         Log.d("TAG","oncreate..")
 
     }
-    private fun placeAnchor(hitResult: HitResult,
-                            renderable: ModelRenderable){
-        val anchor = hitResult.createAnchor()
-        placedAnchors.add(anchor)
 
-        val anchorNode = AnchorNode(anchor).apply {
-            isSmoothed = true
-            setParent(arFragment!!.arSceneView.scene)
-        }
-        placedAnchorNodes.add(anchorNode)
-
-        val node = TransformableNode(arFragment!!.transformationSystem)
-            .apply{
-                this.rotationController.isEnabled = false
-                this.scaleController.isEnabled = false
-                this.translationController.isEnabled = true
-                this.renderable = renderable
-                setParent(anchorNode)
-            }
-
-        arFragment!!.arSceneView.scene.addOnUpdateListener(this)
-        arFragment!!.arSceneView.scene.addChild(anchorNode)
-        node.select()
-//        for(i in midAnchorNodes.keys){
-//            val rotationFromAToB: Quaternion =
-//
-//            midAnchorNodes.get(i).worldRotation=rotationFromAToB
-//        }
-//        arFragment.arSceneView.rotationX
-    }
 
     fun calculateDistance(objectPose0: Vector3, objectPose1: Vector3): Float{
         return calculateDistance(
@@ -126,10 +98,13 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
     }
 
     override fun onUpdate(frameTime: FrameTime?) {
-//        for(i in 0 until (placedAnchorNodes.size-1)){
-//            measureDistanceOf2Points(i,i+1)
-//
-//        }
+        if(placedAnchorNodes.size>=2){
+            var j=1
+            while (j<placedAnchorNodes.size){
+                measureDistanceOf2Points(j-1,j)
+                j++
+            }
+        }
         Log.d("TAG","onUpdate....")
     }
     private fun drawLine(node1: AnchorNode, node2: AnchorNode) {
@@ -172,11 +147,11 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
     private fun initDistanceCard(key:String){
         ViewRenderable.builder().setView(this, R.layout.distance_text_layout).build()
         .thenAccept{
-                it.isShadowCaster = false
-                it.isShadowReceiver = false
-                val v= midAnchorNodes[key]
-                v?.add(it)
-                midAnchorNodes.replace(key,v!!)
+            var v:ViewRenderable?=null
+                v=it
+                v.isShadowCaster = false
+                v.isShadowReceiver = false
+                distanceCardRenderables.put(key,v)
             }.exceptionally {
                 val builder = AlertDialog.Builder(this)
                 builder.setMessage(it.message).setTitle("Error")
@@ -217,36 +192,66 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
             val quaternion = floatArrayOf(0.0f,0.0f,0.0f,0.0f)
             val pose = Pose(midPosition, quaternion)
 
-            placeMidAnchor(pose, arrayOf(a,b))
+            placeMidAnchor(pose, a,b)
         }
     }
-
-    private fun placeMidAnchor(pose: Pose,
-                               between: Array<Int> = arrayOf(0,1)){
-        val midKey = "${between[0]}_${between[1]}"
-        val anchor = arFragment!!.arSceneView.session!!.createAnchor(pose)
-        midAnchors.put(midKey, anchor)
+    private fun placeAnchor(hitResult: HitResult,
+                            renderable: ModelRenderable){
+        val anchor = hitResult.createAnchor()
+        placedAnchors.add(anchor)
 
         val anchorNode = AnchorNode(anchor).apply {
             isSmoothed = true
             setParent(arFragment!!.arSceneView.scene)
         }
-        midAnchorNodes.put(midKey, arrayListOf(anchorNode))
+        placedAnchorNodes.add(anchorNode)
+
+        val node = TransformableNode(arFragment!!.transformationSystem)
+            .apply{
+                this.rotationController.isEnabled = false
+                this.scaleController.isEnabled = false
+                this.translationController.isEnabled = true
+                this.renderable = renderable
+                setParent(anchorNode)
+            }
+
+        arFragment!!.arSceneView.scene.addOnUpdateListener(this)
+        arFragment!!.arSceneView.scene.addChild(anchorNode)
+        node.select()
+//        for(i in midAnchorNodes.keys){
+//            val rotationFromAToB: Quaternion =
+//
+//            midAnchorNodes.get(i).worldRotation=rotationFromAToB
+//        }
+//        arFragment.arSceneView.rotationX
+    }
+    private fun placeMidAnchor(pose: Pose,
+                               a:Int,b:Int){
+        val key = "$a"+"_"+"$b"
+        val anchor = arFragment!!.arSceneView.session!!.createAnchor(pose)
+        midAnchors.put(key, anchor)
+
+        val anchorNode = AnchorNode(anchor).apply {
+            isSmoothed = true
+            setParent(arFragment!!.arSceneView.scene)
+        }
 //        val distanceCardRenderable=initDistanceCard()
-//        arrayListOf(anchorNode,this.distanceCardRenderable)?.let { midAnchorNodes.put(midKey, it) }
-        initDistanceCard(midKey)
+//        arrayListOf(anchorNode,this.distanceCardRenderable)?.let { midAnchorNodes.put(key, it) }
+        initDistanceCard(key)
         val node = TransformableNode(arFragment!!.transformationSystem)
             .apply{
                 this.rotationController.isEnabled = true
                 this.scaleController.isEnabled = true
                 this.translationController.isEnabled = true
-                this.renderable = midAnchorNodes[midKey]!![1] as ViewRenderable
+                this.renderable = distanceCardRenderables.get(key)
                 setParent(anchorNode)
             }
+        midAnchorNodes.put(key,anchorNode)
+
         arFragment!!.arSceneView.scene.addOnUpdateListener(this)
         arFragment!!.arSceneView.scene.addChild(anchorNode)
     }
-    private fun clearAllAnchors(){
+    private fun clearAll(){
         placedAnchors.clear()
         for (anchorNode in placedAnchorNodes){
             arFragment!!.arSceneView.scene.removeChild(anchorNode)
@@ -257,13 +262,12 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
         placedAnchorNodes.clear()
         midAnchors.clear()
         for ((k,arr) in midAnchorNodes){
-            val anchorNode= arr[0] as AnchorNode
-            arFragment!!.arSceneView.scene.removeChild(anchorNode)
-            anchorNode.isEnabled = false
-            anchorNode.anchor!!.detach()
-            anchorNode.setParent(null)
+            arFragment!!.arSceneView.scene.removeChild(arr)
+            arr.isEnabled = false
+            arr.anchor!!.detach()
+            arr.setParent(null)
         }
-        midAnchorNodes.clear()
+        distanceCardRenderables.clear()
     }
     private fun measureDistanceOf2Points(i:Int,j:Int){
         if (placedAnchorNodes.size >= 2) {
@@ -278,7 +282,7 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
         val distanceTextFt = makeDistanceTextWithFt(distanceMeter)
         val key="$i"+"_"+"$j"
 //        val distanceCardRenderable=midAnchorNodes.get("$i"+"_"+"$j")?.get(1) as ViewRenderable
-        val textView = ((midAnchorNodes[key]!![1] as ViewRenderable).view as LinearLayout)
+        val textView = (distanceCardRenderables.get(key)?.view as LinearLayout)
             .findViewById<TextView>(R.id.distanceCard)
         textView.text = distanceTextFt
         Log.d("TAG", "distance: ${distanceTextFt}")
