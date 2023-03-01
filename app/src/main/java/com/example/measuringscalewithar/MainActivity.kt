@@ -45,16 +45,6 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
     val lengthDatas:ArrayList<String> = arrayListOf()
     val nodesForLine:ArrayList<Node> = arrayListOf()
 
-    var TplacedAnchorNodes=ArrayList<AnchorNode>()
-    val TmidAnchorNodes:ArrayList<AnchorNode> = arrayListOf()
-    val TlengthDatas:ArrayList<String> = arrayListOf()
-    val TdistanceCardRenderables:ArrayList<ViewRenderable> = arrayListOf()
-    val TnodesForLine:ArrayList<Node> = arrayListOf()
-
-    private lateinit var initCM: String
-//
-//    private lateinit var clearButton: Button
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding=ActivityMainBinding.inflate(layoutInflater)
@@ -88,8 +78,6 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
         binding.clear.setOnClickListener(View.OnClickListener { clearAll() })
         binding.proceed.setOnClickListener(View.OnClickListener { processToNext()  })
         binding.removeLast.setOnClickListener(View.OnClickListener { removeLast() })
-        binding.breakChain.setOnClickListener(View.OnClickListener { breakChain()  })
-
 
     }
 
@@ -110,8 +98,10 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
         if(placedAnchorNodes.size>=2){
             var j=1
             while (j<placedAnchorNodes.size){
-                measureDistanceOf2Points(j-1,j)
-                j++
+                if(placedAnchorNodes.size!=5) {
+                    measureDistanceOf2Points(j - 1, j)
+                    j++
+                }
             }
         }
         Log.d("TAG","onUpdate....")
@@ -124,26 +114,16 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
         point1 = node1.worldPosition
         point2 = node2.worldPosition
 
-
-        //First, find the vector extending between the two points and define a look rotation
-        //in terms of this Vector.
         val difference = Vector3.subtract(point1, point2)
         val directionFromTopToBottom = difference.normalized()
         val rotationFromAToB: Quaternion =
             Quaternion.lookRotation(directionFromTopToBottom, Vector3.up())
         MaterialFactory.makeOpaqueWithColor(applicationContext, Color(0F, 255F, 244F))
             .thenAccept { material: Material? ->
-                /* Then, create a rectangular prism, using ShapeFactory.makeCube() and use the difference vector
-               to extend to the necessary length.  */Log.d(
-                "TAG",
-                "drawLine insie .thenAccept"
-            )
                 val model = ShapeFactory.makeCube(
                     Vector3(.01f, .01f, difference.length()),
                     Vector3.zero(), material
                 )
-                /* Last, set the world rotation of the node to the rotation calculated earlier and set the world position to
-           the midpoint between the given points . */
                 val lineAnchor = node2.anchor
                 val nodeForLine = Node()
                 nodeForLine.setParent(node1)
@@ -196,7 +176,8 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
     }
     private fun tapDistanceOf2Points(hitResult: HitResult){
         placeAnchor(hitResult, cubeRenderable!!)
-        if (placedAnchorNodes.size > 1){
+        if ((placedAnchorNodes.size > 1 && placedAnchorNodes.size<=4) ||
+            placedAnchorNodes.size>5){
             val b=placedAnchorNodes.size-1
             val a=placedAnchorNodes.size-2
             val midPosition = floatArrayOf(
@@ -232,12 +213,6 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
         arFragment!!.arSceneView.scene.addOnUpdateListener(this)
         arFragment!!.arSceneView.scene.addChild(anchorNode)
         node.select()
-//        for(i in midAnchorNodes.keys){
-//            val rotationFromAToB: Quaternion =
-//
-//            midAnchorNodes.get(i).worldRotation=rotationFromAToB
-//        }
-//        arFragment.arSceneView.rotationX
     }
     private fun placeMidAnchor(pose: Pose,
                                a:Int,b:Int){
@@ -267,25 +242,6 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
         arFragment!!.arSceneView.scene.addChild(anchorNode)
     }
     private fun clearAll(){
-        if(breakChain){
-            TdistanceCardRenderables.clear()
-            TlengthDatas.clear()
-            for(i in TmidAnchorNodes){
-                arFragment!!.arSceneView.scene.removeChild(i)
-                i.isEnabled = false
-                i.anchor!!.detach()
-                i.setParent(null)
-            }
-            TmidAnchorNodes.clear()
-            for (i in TplacedAnchorNodes){
-                arFragment!!.arSceneView.scene.removeChild(i)
-                i.isEnabled = false
-                i.anchor!!.detach()
-                i.setParent(null)
-            }
-            TplacedAnchorNodes.clear()
-            nodesForLine.clear()
-        }
         placedAnchors.clear()
         for (anchorNode in placedAnchorNodes){
             arFragment!!.arSceneView.scene.removeChild(anchorNode)
@@ -307,36 +263,7 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
         lengthDatas.clear()
     }
     fun removeLast(){
-        if(breakChain){
-            if(TplacedAnchorNodes.isEmpty()){
-                breakChain=false
-            }else{
-                if(TplacedAnchorNodes.size>=2){
-                    TlengthDatas.removeLast()
-                }
-                val anchorNode=TplacedAnchorNodes.last()
-                arFragment!!.arSceneView.scene.removeChild(anchorNode)
-                anchorNode.isEnabled = false
-                anchorNode.anchor!!.detach()
-                anchorNode.setParent(null)
-                TplacedAnchorNodes.removeLast()
-                val arr=TmidAnchorNodes.last()
-                arFragment!!.arSceneView.scene.removeChild(arr)
-                arr.isEnabled = false
-                arr.anchor!!.detach()
-                arr.setParent(null)
-                TmidAnchorNodes.removeLast()
-                TdistanceCardRenderables.removeAt(TdistanceCardRenderables.size - 2)
-
-                if(TnodesForLine.isNotEmpty()) {
-                    val i = TnodesForLine.last()
-                    i.isEnabled = false
-                    i.parent = null
-                    TnodesForLine.removeLastOrNull()
-                }
-            }
-        }
-        else if(placedAnchorNodes.isNotEmpty()) {
+        if(placedAnchorNodes.isNotEmpty()) {
             placedAnchors.removeLast()
                 val anchorNode=placedAnchorNodes.last()
                 arFragment!!.arSceneView.scene.removeChild(anchorNode)
@@ -354,13 +281,6 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
             distanceCardRenderables.removeAt(distanceCardRenderables.size - 2)
             if(lengthDatas.isNotEmpty()){
                 lengthDatas.removeLast()
-            }
-
-            if(TnodesForLine.isNotEmpty()) {
-                val i = TnodesForLine.last()
-                i.isEnabled = false
-                i.parent = null
-                TnodesForLine.removeLastOrNull()
             }
         }
     }
@@ -394,8 +314,5 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
     }
     fun processToNext(){
 
-    }
-    fun breakChain(){
-        breakChain=true
     }
 }
