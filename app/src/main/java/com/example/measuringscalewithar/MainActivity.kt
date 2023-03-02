@@ -30,13 +30,7 @@ import kotlin.math.sqrt
 class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
     lateinit var binding:ActivityMainBinding
     lateinit var arFragment: ArFragment
-//    private var distanceModeTextView: TextView? = null
-//    private lateinit var pointTextView: TextView
-//
-    var breakChain=false
     lateinit var cubeRenderable: ModelRenderable
-    private var distanceCardRenderable: ViewRenderable? = null
-
     var placedAnchors=ArrayList<Anchor>()
     var placedAnchorNodes=ArrayList<AnchorNode>()
     val midAnchors: ArrayList<Anchor> = arrayListOf()
@@ -50,11 +44,8 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
         binding=ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-//        val link="https://firebasestorage.googleapis.com/v0/b/woodpeaker-39311.appspot.com/o/models%2Fscene.glb?alt=media&token=54bc56cd-2bfa-4f7a-912e-070b669b66ad"
-//        val localLink="models/scene.glb"
         arFragment=(supportFragmentManager.findFragmentById(R.id.arFragment) as ArFragment)
 
-//        arFragment.setOnTapPlaneGlbModel(localLink)
         initSphere()
         initDistanceCard()
         arFragment.apply {
@@ -64,7 +55,6 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
                 }
             }
             setOnViewCreatedListener { arSceneView ->
-                // Available modes: DEPTH_OCCLUSION_DISABLED, DEPTH_OCCLUSION_ENABLED
                 arSceneView.cameraStream.depthOcclusionMode =
                     CameraStream.DepthOcclusionMode.DEPTH_OCCLUSION_ENABLED
             }
@@ -95,20 +85,13 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
     }
 
     override fun onUpdate(frameTime: FrameTime?) {
-        if(placedAnchorNodes.size>=2 && placedAnchorNodes.size<=4){
+        if(placedAnchorNodes.size>=2){
             var j=1
             while (j<placedAnchorNodes.size){
                     measureDistanceOf2Points(j - 1, j)
                     j++
             }
-        }else if(placedAnchorNodes.size>=6){
-            var j=6
-            while (j<placedAnchorNodes.size){
-                    measureDistanceOf2Points(j - 1, j)
-                    j++
-            }
         }
-        Log.d("TAG","onUpdate....")
     }
     private fun drawLine(node1: AnchorNode, node2: AnchorNode) {
         //Draw a line between two AnchorNodes (adapted from https://stackoverflow.com/a/52816504/334402)
@@ -137,32 +120,32 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
                 nodesForLine.add(nodeForLine)
             }
     }
-//    fun updateDrawline(){
-//        Log.d("TAG", "drawLine")
-//        val point1: Vector3
-//        val point2: Vector3
-//        point1 = node1.worldPosition
-//        point2 = node2.worldPosition
-//
-//        val difference = Vector3.subtract(point1, point2)
-//        val directionFromTopToBottom = difference.normalized()
-//        val rotationFromAToB: Quaternion =
-//            Quaternion.lookRotation(directionFromTopToBottom, Vector3.up())
-//        MaterialFactory.makeOpaqueWithColor(applicationContext, Color(0F, 255F, 244F))
-//            .thenAccept { material: Material? ->
-//                val model = ShapeFactory.makeCube(
-//                    Vector3(.01f, .01f, difference.length()),
-//                    Vector3.zero(), material
-//                )
-//                val lineAnchor = node2.anchor
-//                val nodeForLine = Node()
-//                nodeForLine.setParent(node2)
-//                nodeForLine.setRenderable(model)
-//                nodeForLine.setWorldPosition(Vector3.add(point1, point2).scaled(.5f))
-//                nodeForLine.setWorldRotation(rotationFromAToB)
-//                nodesForLine.add(nodeForLine)
-//            }
-//    }
+    fun updateDrawline(node1: AnchorNode,node2: AnchorNode){
+        Log.d("TAG", "drawLine")
+        val point1: Vector3
+        val point2: Vector3
+        point1 = node1.worldPosition
+        point2 = node2.worldPosition
+
+        val difference = Vector3.subtract(point1, point2)
+        val directionFromTopToBottom = difference.normalized()
+        val rotationFromAToB: Quaternion =
+            Quaternion.lookRotation(directionFromTopToBottom, Vector3.up())
+        MaterialFactory.makeOpaqueWithColor(applicationContext, Color(0F, 255F, 244F))
+            .thenAccept { material: Material? ->
+                val model = ShapeFactory.makeCube(
+                    Vector3(.01f, .01f, difference.length()),
+                    Vector3.zero(), material
+                )
+                val lineAnchor = node2.anchor
+                val nodeForLine = Node()
+                nodeForLine.setParent(node2)
+                nodeForLine.setRenderable(model)
+                nodeForLine.setWorldPosition(Vector3.add(point1, point2).scaled(.5f))
+                nodeForLine.setWorldRotation(rotationFromAToB)
+                nodesForLine.add(nodeForLine)
+            }
+    }
 
     private fun initDistanceCard(){
         Log.d("TAG","fuck1")
@@ -206,8 +189,7 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
     }
     private fun tapDistanceOf2Points(hitResult: HitResult){
         placeAnchor(hitResult, cubeRenderable!!)
-        if ((placedAnchorNodes.size > 1 && placedAnchorNodes.size<=4) ||
-            placedAnchorNodes.size>5){
+        if (placedAnchorNodes.size > 1){
             val b=placedAnchorNodes.size-1
             val a=placedAnchorNodes.size-2
             val midPosition = floatArrayOf(
@@ -219,9 +201,6 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
 
             placeMidAnchor(pose, a,b)
         }
-//        else  if(placedAnchorNodes.size==5){
-//            initDistanceCard()
-//        }
     }
     private fun placeAnchor(hitResult: HitResult,
                             renderable: ModelRenderable){
@@ -256,7 +235,6 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
             isSmoothed = true
             setParent(arFragment!!.arSceneView.scene)
         }
-//        val distanceCardRenderable=initDistanceCard()
         val node = TransformableNode(arFragment!!.transformationSystem)
             .apply{
                 this.rotationController.isEnabled = true
@@ -322,11 +300,7 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
                 placedAnchorNodes[j].worldPosition)
             val distanceFt=makeDistanceTextWithFt(distanceMeter)
             lengthDatas.add(i,distanceFt)
-            if(placedAnchorNodes.size<=4){
-                setDistanceToRenderable(distanceFt,distanceCardRenderables[j-1])
-            }else if(placedAnchorNodes.size>=6){
-                setDistanceToRenderable(distanceFt,distanceCardRenderables[j-2])
-            }
+            setDistanceToRenderable(distanceFt,distanceCardRenderables[j-1])
     }
 
     private fun setDistanceToRenderable(distance: String,distanceRenderable: ViewRenderable){
