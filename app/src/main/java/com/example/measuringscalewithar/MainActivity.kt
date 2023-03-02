@@ -95,13 +95,17 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
     }
 
     override fun onUpdate(frameTime: FrameTime?) {
-        if(placedAnchorNodes.size>=2){
+        if(placedAnchorNodes.size>=2 && placedAnchorNodes.size<=4){
             var j=1
             while (j<placedAnchorNodes.size){
-                if(placedAnchorNodes.size!=5) {
                     measureDistanceOf2Points(j - 1, j)
                     j++
-                }
+            }
+        }else if(placedAnchorNodes.size>=6){
+            var j=6
+            while (j<placedAnchorNodes.size){
+                    measureDistanceOf2Points(j - 1, j)
+                    j++
             }
         }
         Log.d("TAG","onUpdate....")
@@ -126,13 +130,39 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
                 )
                 val lineAnchor = node2.anchor
                 val nodeForLine = Node()
-                nodeForLine.setParent(node1)
+                nodeForLine.setParent(node2)
                 nodeForLine.setRenderable(model)
                 nodeForLine.setWorldPosition(Vector3.add(point1, point2).scaled(.5f))
                 nodeForLine.setWorldRotation(rotationFromAToB)
                 nodesForLine.add(nodeForLine)
             }
     }
+//    fun updateDrawline(){
+//        Log.d("TAG", "drawLine")
+//        val point1: Vector3
+//        val point2: Vector3
+//        point1 = node1.worldPosition
+//        point2 = node2.worldPosition
+//
+//        val difference = Vector3.subtract(point1, point2)
+//        val directionFromTopToBottom = difference.normalized()
+//        val rotationFromAToB: Quaternion =
+//            Quaternion.lookRotation(directionFromTopToBottom, Vector3.up())
+//        MaterialFactory.makeOpaqueWithColor(applicationContext, Color(0F, 255F, 244F))
+//            .thenAccept { material: Material? ->
+//                val model = ShapeFactory.makeCube(
+//                    Vector3(.01f, .01f, difference.length()),
+//                    Vector3.zero(), material
+//                )
+//                val lineAnchor = node2.anchor
+//                val nodeForLine = Node()
+//                nodeForLine.setParent(node2)
+//                nodeForLine.setRenderable(model)
+//                nodeForLine.setWorldPosition(Vector3.add(point1, point2).scaled(.5f))
+//                nodeForLine.setWorldRotation(rotationFromAToB)
+//                nodesForLine.add(nodeForLine)
+//            }
+//    }
 
     private fun initDistanceCard(){
         Log.d("TAG","fuck1")
@@ -189,6 +219,9 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
 
             placeMidAnchor(pose, a,b)
         }
+//        else  if(placedAnchorNodes.size==5){
+//            initDistanceCard()
+//        }
     }
     private fun placeAnchor(hitResult: HitResult,
                             renderable: ModelRenderable){
@@ -224,7 +257,6 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
             setParent(arFragment!!.arSceneView.scene)
         }
 //        val distanceCardRenderable=initDistanceCard()
-//        arrayListOf(anchorNode,this.distanceCardRenderable)?.let { midAnchorNodes.put(key, it) }
         val node = TransformableNode(arFragment!!.transformationSystem)
             .apply{
                 this.rotationController.isEnabled = true
@@ -290,7 +322,11 @@ class MainActivity : AppCompatActivity(), Scene.OnUpdateListener {
                 placedAnchorNodes[j].worldPosition)
             val distanceFt=makeDistanceTextWithFt(distanceMeter)
             lengthDatas.add(i,distanceFt)
-            setDistanceToRenderable(distanceFt,distanceCardRenderables[j-1])
+            if(placedAnchorNodes.size<=4){
+                setDistanceToRenderable(distanceFt,distanceCardRenderables[j-1])
+            }else if(placedAnchorNodes.size>=6){
+                setDistanceToRenderable(distanceFt,distanceCardRenderables[j-2])
+            }
     }
 
     private fun setDistanceToRenderable(distance: String,distanceRenderable: ViewRenderable){
